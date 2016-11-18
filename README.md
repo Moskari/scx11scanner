@@ -43,11 +43,9 @@ with motor.open as m:
 
 ## Installation
 
-Tested only with Python 3.5 (Windows), but underlying PySerial module should support linux also.
+Tested only with Python 3.5 (Windows), but underlying PySerial module should also support Linux.
 
-`pip install <directory path where is setup.py>`
-
-Requires running SCX11's Immediate Motion Creator and opening the serial ports before running any scripts.  
+`pip install <directory path where is setup.py>` 
 
 ## License
 
