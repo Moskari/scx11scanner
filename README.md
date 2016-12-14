@@ -50,3 +50,6 @@ Tested only with Python 3.5 (Windows), but underlying PySerial module should als
 ## License
 
 The MIT License (MIT)
+
+**Disclaimer**
+The author disclaims all responsibility for possible damage to machines and/or people. Use the software with your own risk.
