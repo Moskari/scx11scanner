@@ -8,6 +8,8 @@ Only serial connection is supported.
 
 The package enables easy connectivity and creation of concurrent control scripts for the motors.
 
+![alt tag](https://dl.dropboxusercontent.com/u/39458993/github/scx11scanner/skanneri.jpg)
+
 ## Code Example:
 
 Move scanner to two user defined positions.
