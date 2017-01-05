@@ -89,7 +89,7 @@ class Motor(ControllerBase):
     '''
 
     def __init__(self, port, name=None, baudrate=9600, write_timeout=5,
-                 logger=None):
+                 logger=None, log_path=None):
         '''
         Constructor.
 
@@ -115,6 +115,7 @@ class Motor(ControllerBase):
         self.id = port
         self.name = name or 'port-' + port
 
+        # PySerial connection to motor
         self.ser = serial.Serial(
             baudrate=baudrate,
             parity=serial.PARITY_NONE,
@@ -129,11 +130,15 @@ class Motor(ControllerBase):
         self.thread_lock = threading.Lock()
         # Lock to avoid pushing and popping to program queue at the same time
         self.queue_lock = threading.Lock()
+        # Lock to enable closing the threads from outside
         self.enabled_lock = threading.Lock()
+        # Lock to check is program running in motor
         self.running_lock = threading.Lock()
 
+        # Events for interthread communication
         event_motor_stopped = threading.Event()
         event_program_running = threading.Event()
+        # Threads for polling the motor state and inputing command sequences
         self.poller_thread = threading.Thread(name='poll motor',
                                               target=self.motor_poller,
                                               args=(event_motor_stopped,
@@ -145,6 +150,9 @@ class Motor(ControllerBase):
 
     @property
     def enabled(self):
+        '''
+        Are threads enabled.
+        '''
         self.enabled_lock.acquire()
         val = self._enabled
         self.enabled_lock.release()
@@ -172,7 +180,12 @@ class Motor(ControllerBase):
         self._running = value
         self.running_lock.release()
 
-    def open(self):
+    def open(self, alarm_clear=False):
+        '''
+        Open serial connection to the motor.
+
+        Finds a single device id and connects to it.
+        '''
         # Open serial connection
         self.ser.port = self.port
         self.ser.open()
@@ -188,6 +201,13 @@ class Motor(ControllerBase):
 
         # Enable threads
         self.enabled = self.connected
+
+        # Clear motor alarm during startup
+        if alarm_clear:
+            self.clear_alarm()
+            if not self.check_alarm():
+                raise Exception('Alarm was not cleared during startup')
+
         # Start threads
         self.poller_thread.start()
         self.runner_thread.start()
@@ -237,6 +257,25 @@ class Motor(ControllerBase):
         else:
             raise Exception(
                 'Read output wasn\'t something expected: %s' % output)
+
+    def get_position(self):
+        '''
+        Returns motor position in relation to the current HOME.
+
+        Not tested!
+        '''
+        self.thread_lock.acquire()
+        self.ser.write(b'\\PC\r\n')
+        time.sleep(0.1)
+        output = self.ser.read_all().decode('ascii')
+        m = re.search(r'^ *PC=[0-9]+.*$', output, re.MULTILINE)
+        if m is not None:
+            position = m.group(0).split('=')[1].strip()
+        else:
+            raise Exception(
+                'Read output wasn\'t something expected: %s' % output)
+        self.thread_lock.release()
+        return position
 
     def connect_dev_id(self, dev_id):
         self.thread_lock.acquire()
@@ -636,6 +675,7 @@ class Scanner(ControllerBase):
                   x_direction=-1,
                   y_direction=-1,
                   offset=10,
+                  retries=5,
                   settings={'UU': 'mm', 'VS': '3', 'VR': '3'}):
         '''
         Moves the scanner to maximum position until alert is raised
@@ -664,7 +704,7 @@ class Scanner(ControllerBase):
         if alarm_x and alarm_y:
             self.x.clear_alarm()
             self.y.clear_alarm()
-            time.sleep(0.5)
+            time.sleep(0.1)
             alarm_x = self.x.check_alarm()
             alarm_y = self.y.check_alarm()
             self.log(name,
@@ -682,12 +722,36 @@ class Scanner(ControllerBase):
                         settings=settings,
                         wait=False)
             self.wait_to_finish()
-            # TODO: Check position is it correct
-            self.reset_home()
         else:
             raise Exception(
                 'Didn\'t receive alarm! X: %s, Y: %s' % (str(alarm_x),
                                                          str(alarm_y)))
+        # Scanner could get stuck, retry 5 times
+        for retry in range(retries):
+            alarm_x = self.x.check_alarm()
+            alarm_y = self.y.check_alarm()
+            if not alarm_x and not alarm_y:
+                break
+            self.log(name,
+                     'Alarm didn\'t clear. Retrying %d...' % retry+1)
+            if alarm_x:
+                self.x.clear_alarm()
+            if alarm_y:
+                self.y.clear_alarm()
+            time.sleep(0.1)
+            if alarm_x:
+                self.x.move(dis=-x_direction*offset,
+                            settings=settings,
+                            wait=False)
+            if alarm_y:
+                self.y.move(dis=-x_direction*offset,
+                            settings=settings,
+                            wait=False)
+            self.wait_to_finish()
+        if retry+1 >= retries:
+            raise Exception('Calibration failed!')
+        # TODO: Check position is it correct
+        self.reset_home()
 
     @kbinterrupt_decorate
     def wait_to_finish(self):

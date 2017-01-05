@@ -14,8 +14,8 @@ Move scanner to two user defined positions.
 
 ```python
 from scx11scanner.scanner import Scanner
-
-scan = Scanner(x_motor='COM5', y_motor='COM4')  # Specify serial ports
+# Specify serial ports
+scan = Scanner(x_motor='COM5', y_motor='COM4', log_path='log.log')
 with scan.open() as s:
     s.calibrate()  # Moves scanner to max position and sets HOME position
     s.move_pos(x=50, y=50)
@@ -43,9 +43,10 @@ with motor.open as m:
 
 ## Installation
 
-Tested only with Python 3.5 (Windows), but underlying PySerial module should also support Linux.
+Tested only with Python 3.5 (Windows), but underlying PySerial module should support linux also.
 
-`pip install <directory path where is setup.py>` 
+`pip install <directory path to setup.py>`
+
 
 ## License
 
