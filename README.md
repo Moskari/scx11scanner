@@ -8,7 +8,7 @@ Only serial connection is supported.
 
 The package enables easy connectivity and creation of concurrent control scripts for the motors.
 
-![alt tag](https://dl.dropboxusercontent.com/u/39458993/github/scx11scanner/skanneri.jpg)
+![alt tag](https://www.dropbox.com/s/vf7n8kt68gjvl6x/skanneri.jpg?dl=1)
 
 ## Code Example:
 
@@ -40,7 +40,7 @@ from scx11scanner.scanner import Motor
 motor = Motor()
 with motor.open as m:
     s.move(dis=10)  # Specify moving distance if HOME position is not set.
-	s.move(dis=-10)
+    s.move(dis=-10)
 ```
 
 ## Installation
